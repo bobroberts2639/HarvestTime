@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #16a34a;
+  --primary-dark: #15803d;
+  --accent: #ea580c;
+  --bg: #f9fafb;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+}
+
+/* High contrast for outdoor readability */
+@media (prefers-contrast: more) {
+  :root {
+    --primary: #15803d;
+    --accent: #c2410c;
+  }
+}
+
+/* Touch targets — minimum 48px for gloved hands */
+button, a, [role="button"] {
+  min-height: 48px;
+  min-width: 48px;
+}
