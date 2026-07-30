@@ -1,241 +1,733 @@
-"""Core entity models — shared by all modules."""
+"""
+Harvest Time — Data Model
+=========================
+SQLAlchemy models for PostGIS-backed backend.
+20 entities matching Alembic migration 001_initial_schema.
 
+PostGIS: Geography columns (SRID 4326) for spatial queries.
+- Farm.location → Geography(POINT, 4326)
+- Field.location → Geography(POINT, 4326)
+- Field.boundary → Geography(POLYGON, 4326)
+- WeatherStation.location → Geography(POINT, 4326)
+
+Authority: Forge's migration is the source of truth for table structure.
+This file must match `alembic/versions/001_initial_schema.py` exactly.
+"""
+
+from __future__ import annotations
+
+import enum
 import uuid
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Optional
 
-from sqlalchemy import (
-    Column, String, Integer, Numeric, Boolean, Text, DateTime, Date,
-    ForeignKey, Index, JSON
-)
-from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
-from sqlalchemy.orm import relationship
 from geoalchemy2 import Geography
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.orm import DeclarativeBase, relationship
 
-from app.database import Base
+
+class Base(DeclarativeBase):
+    pass
 
 
-class TimestampMixin:
-    """Mixin that adds created_at and updated_at columns."""
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+
+class CropType(str, enum.Enum):
+    WHEAT = "wheat"
+    CORN = "corn"
+    SOYBEAN = "soybean"
+    RICE = "rice"
+    COTTON = "cotton"
+    BARLEY = "barley"
+    OATS = "oats"
+    SORGHUM = "sorghum"
+    POTATO = "potato"
+    TOMATO = "tomato"
+    CITRUS = "citrus"
+    APPLE = "apple"
+    GRAPE = "grape"
+    OTHER = "other"
 
 
-class User(Base, TimestampMixin):
-    """User account — farmer or admin."""
+class GrowthStage(str, enum.Enum):
+    DORMANT = "dormant"
+    EMERGENCE = "emergence"
+    TILLERING = "tillering"
+    JOINTING = "jointing"
+    HEADING = "heading"
+    FLOWERING = "flowering"
+    FRUIT_FILL = "fruit_fill"
+    MATURATION = "maturation"
+    HARVEST_READY = "harvest_ready"
+    POST_HARVEST = "post_harvest"
+
+
+class SoilType(str, enum.Enum):
+    SANDY = "sandy"
+    LOAM = "loam"
+    CLAY = "clay"
+    SILT = "silt"
+    PEATY = "peaty"
+    CHALKY = "chalky"
+    SILTY_LOAM = "silty_loam"
+    SANDY_LOAM = "sandy_loam"
+    CLAY_LOAM = "clay_loam"
+
+
+class DrainageClass(str, enum.Enum):
+    EXCESSIVE = "excessive"
+    WELL_DRAINED = "well_drained"
+    MODERATELY_DRAINED = "moderately_drained"
+    POORLY_DRAINED = "poorly_drained"
+    VERY_POORLY_DRAINED = "very_poorly_drained"
+
+
+class AlertType(str, enum.Enum):
+    FROST = "frost"
+    HEAT_STRESS = "heat_stress"
+    SEVERE_STORM = "severe_storm"
+    HIGH_WIND = "high_wind"
+    HEAVY_RAIN = "heavy_rain"
+    DROUGHT = "drought"
+    HAIL = "hail"
+
+
+class AlertSeverity(str, enum.Enum):
+    INFO = "info"
+    WATCH = "watch"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+class RecommendationPriority(str, enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class RecommendationCategory(str, enum.Enum):
+    IRRIGATION = "irrigation"
+    FERTILIZATION = "fertilization"
+    PEST_CONTROL = "pest_control"
+    PLANTING = "planting"
+    HARVESTING = "harvesting"
+    TILLAGE = "tillage"
+    DRAINAGE = "drainage"
+    FROST_PROTECTION = "frost_protection"
+    OTHER = "other"
+
+
+class EventType(str, enum.Enum):
+    PLANTING = "planting"
+    FERTILIZER_APPLICATION = "fertilizer_application"
+    IRRIGATION = "irrigation"
+    HARVEST = "harvest"
+    TILLAGE = "tillage"
+    PEST_CONTROL = "pest_control"
+    SCOUTING = "scouting"
+    SOIL_SAMPLE = "soil_sample"
+    OTHER = "other"
+
+
+class FeedbackSentiment(str, enum.Enum):
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    NEUTRAL = "neutral"
+
+
+# ---------------------------------------------------------------------------
+# Core Entities
+# ---------------------------------------------------------------------------
+
+class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String, unique=True, nullable=False, index=True)
-    name = Column(String, nullable=False)
-    phone = Column(String, nullable=True)
-    timezone = Column(String, default="UTC", nullable=False)
-    preferences = Column(JSONB, default=dict, nullable=False)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    display_name = Column(String(128), nullable=False)
+    phone = Column(String(32), nullable=True)
+    timezone = Column(String(64), nullable=False, default="UTC")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    farms = relationship("Farm", back_populates="user", lazy="selectin")
-    preferences_detail = relationship("UserPreferences", back_populates="user", uselist=False, lazy="selectin")
+    farms = relationship("Farm", back_populates="owner", cascade="all, delete-orphan")
+    preferences = relationship("UserPreferences", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    recommendations = relationship("Recommendation", back_populates="user")
+    custom_events = relationship("CustomEvent", back_populates="user")
+    overrides = relationship("UserOverride", back_populates="user")
+    alert_thresholds = relationship("AlertThreshold", back_populates="user", cascade="all, delete-orphan")
 
 
-class Farm(Base, TimestampMixin):
-    """Farm — a collection of fields under one owner."""
+class Farm(Base):
     __tablename__ = "farms"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    name = Column(String, nullable=False)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Farm centroid — used for regional weather zone assignment
     location = Column(Geography(geometry_type="POINT", srid=4326), nullable=True)
-    timezone = Column(String, nullable=True)  # Inherits from User if null
 
-    # Relationships
-    user = relationship("User", back_populates="farms")
-    fields = relationship("Field", back_populates="farm", lazy="selectin")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    owner = relationship("User", back_populates="farms")
+    fields = relationship("Field", back_populates="farm", cascade="all, delete-orphan")
 
 
-class Field(Base, TimestampMixin):
-    """Field — a specific plot of land within a farm."""
+class Field(Base):
     __tablename__ = "fields"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farm_id = Column(UUID(as_uuid=True), ForeignKey("farms.id"), nullable=False, index=True)
-    name = Column(String, nullable=False)
-    area_hectares = Column(Numeric(10, 2), nullable=True)
+    farm_id = Column(UUID(as_uuid=True), ForeignKey("farms.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+
+    # PostGIS geography — field centroid for spatial queries
+    location = Column(Geography(geometry_type="POINT", srid=4326), nullable=False)
+
+    # Optional: field boundary polygon for precision agriculture
     boundary = Column(Geography(geometry_type="POLYGON", srid=4326), nullable=True)
-    metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
 
-    # Relationships
+    # Area in hectares
+    area_hectares = Column(Float, nullable=True)
+
+    # Tags for flexible categorization
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
     farm = relationship("Farm", back_populates="fields")
-    soil_profiles = relationship("SoilProfile", back_populates="field", lazy="selectin")
-    plantings = relationship("CropPlanting", back_populates="field", lazy="selectin")
-    weather_observations = relationship("WeatherObservation", back_populates="field", lazy="noload")
-    weather_forecasts = relationship("WeatherForecast", back_populates="field", lazy="noload")
-    recommendations = relationship("Recommendation", back_populates="field", lazy="noload")
-    alerts = relationship("Alert", back_populates="field", lazy="noload")
-    notes = relationship("FieldNote", back_populates="field", lazy="noload")
+    forecasts = relationship("WeatherForecast", back_populates="field", cascade="all, delete-orphan")
+    alerts = relationship("Alert", back_populates="field", cascade="all, delete-orphan")
+    recommendations = relationship("Recommendation", back_populates="field")
+    field_notes = relationship("FieldNote", back_populates="field", cascade="all, delete-orphan")
+    custom_events = relationship("CustomEvent", back_populates="field")
+    gdd_records = relationship("GrowingDegreeDay", back_populates="field", cascade="all, delete-orphan")
+    season_journals = relationship("SeasonJournal", back_populates="field", cascade="all, delete-orphan")
+    overrides = relationship("UserOverride", back_populates="field", cascade="all, delete-orphan")
+    crop_plantings = relationship("CropPlanting", back_populates="field", cascade="all, delete-orphan")
+    soil_profiles = relationship("SoilProfile", back_populates="field", cascade="all, delete-orphan")
 
+    __table_args__ = (
+        Index("idx_fields_farm", "farm_id"),
+        Index("idx_fields_location", "location", postgresql_using="gist"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Crop & Soil Entities (normalized from Field)
+# ---------------------------------------------------------------------------
 
 class Crop(Base):
-    """Crop — reference/lookup table for crop types."""
+    """Reference table for crop types — lookup data for the recommendation engine."""
     __tablename__ = "crops"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, nullable=False, unique=True)  # "Winter Wheat", "Corn"
-    family = Column(String, nullable=True)  # Poaceae, Fabaceae, etc.
-    growing_season_start = Column(Integer, nullable=True)  # Month (1-12)
-    growing_season_end = Column(Integer, nullable=True)
-    base_gdd_temp = Column(Numeric(5, 2), nullable=True)  # Base temp for GDD calculation
-    growth_stages = Column(JSONB, nullable=True)  # [{name, min_gdd, max_gdd, typical_duration_days}]
-    water_needs = Column(JSONB, nullable=True)  # {mm_per_day_avg, critical_periods: [...]}
-    temp_range = Column(JSONB, nullable=True)  # {min_germination, max_germination, min_growth, max_growth}
+    name = Column(String(255), unique=True, nullable=False)       # e.g. "Winter Wheat"
+    crop_type = Column(Enum(CropType), nullable=False)
+    variety = Column(String(255), nullable=True)                  # e.g. "Hard Red Winter"
+    base_temp_c = Column(Float, nullable=True)                    # GDD base temperature
+    growing_season_days = Column(Integer, nullable=True)          # typical days to maturity
+    description = Column(Text, nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
 
-    # Relationships
-    plantings = relationship("CropPlanting", back_populates="crop", lazy="noload")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    plantings = relationship("CropPlanting", back_populates="crop")
 
 
-class CropPlanting(Base, TimestampMixin):
-    """CropPlanting — an active season instance of a crop in a field."""
+class CropPlanting(Base):
+    """Active or historical crop plantings on a field."""
     __tablename__ = "crop_plantings"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False, index=True)
-    crop_id = Column(UUID(as_uuid=True), ForeignKey("crops.id"), nullable=False, index=True)
-    planted_date = Column(Date, nullable=False)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+    crop_id = Column(UUID(as_uuid=True), ForeignKey("crops.id"), nullable=False)
+    planting_date = Column(Date, nullable=False)
     expected_harvest_date = Column(Date, nullable=True)
     actual_harvest_date = Column(Date, nullable=True)
-    variety = Column(String, nullable=True)
-    seeding_rate = Column(Numeric(10, 2), nullable=True)
-    status = Column(String(20), default="planted", nullable=False)  # planted|growing|harvested|failed
-    metadata_ = Column("metadata", JSONB, default=dict, nullable=False)
+    growth_stage = Column(Enum(GrowthStage), nullable=True)
+    is_active = Column(Boolean, default=True)
+    tags = Column(ARRAY(String), nullable=True)
 
-    # Relationships
-    field = relationship("Field", back_populates="plantings")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    field = relationship("Field", back_populates="crop_plantings")
     crop = relationship("Crop", back_populates="plantings")
-    growing_degree_days = relationship("GrowingDegreeDay", back_populates="crop_planting", lazy="noload")
-    recommendations = relationship("Recommendation", back_populates="crop_planting", lazy="noload")
+
+    __table_args__ = (
+        Index("idx_plantings_field_active", "field_id", "is_active"),
+    )
 
 
-class SoilProfile(Base, TimestampMixin):
-    """SoilProfile — soil data for a field (supports history via multiple rows)."""
+class SoilProfile(Base):
+    """Soil data per field — can have multiple historical samples."""
     __tablename__ = "soil_profiles"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False, index=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    soil_type = Column(String(20), nullable=True)  # clay|sandy|loam|silt|peat|chalk
-    ph = Column(Numeric(3, 1), nullable=True)
-    organic_matter_pct = Column(Numeric(5, 2), nullable=True)
-    nitrogen_ppm = Column(Numeric, nullable=True)
-    phosphorus_ppm = Column(Numeric, nullable=True)
-    potassium_ppm = Column(Numeric, nullable=True)
-    drainage_class = Column(String(20), nullable=True)  # poor|moderate|well|excessive
-    water_holding_capacity = Column(Numeric, nullable=True)
-    cec = Column(Numeric, nullable=True)  # Cation exchange capacity
-    last_tested_date = Column(Date, nullable=True)
-    raw_lab_results = Column(JSONB, default=dict, nullable=False)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+    sample_date = Column(Date, nullable=False)
 
-    # Relationships
+    soil_type = Column(Enum(SoilType), nullable=True)
+    drainage_class = Column(Enum(DrainageClass), nullable=True)
+    organic_matter_pct = Column(Float, nullable=True)
+    ph = Column(Float, nullable=True)
+    nitrogen_ppm = Column(Float, nullable=True)
+    phosphorus_ppm = Column(Float, nullable=True)
+    potassium_ppm = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Source of soil data: "ssurgo", "soilgrids", "manual", "farmer"
+    source = Column(String(64), nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
     field = relationship("Field", back_populates="soil_profiles")
 
+    __table_args__ = (
+        Index("idx_soil_field_date", "field_id", "sample_date"),
+    )
 
-# --- Ownership & Personalization Entities ---
 
+# ---------------------------------------------------------------------------
+# Weather Entities
+# ---------------------------------------------------------------------------
 
-class UserPreferences(Base, TimestampMixin):
-    """UserPreferences — farmer's personalization settings."""
-    __tablename__ = "user_preferences"
+class WeatherStation(Base):
+    """Reference table for weather stations — used for spatial proximity queries."""
+    __tablename__ = "weather_stations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False, index=True)
-    units = Column(String(10), default="metric", nullable=False)  # metric|imperial
-    language = Column(String(10), default="en", nullable=False)
-    organic_mode = Column(Boolean, default=False, nullable=False)
-    seasonal_goals = Column(JSONB, default=list, nullable=False)  # [{goal, priority}]
-    recommendation_preferences = Column(JSONB, default=dict, nullable=False)  # {skip_categories: [...]}
+    station_id = Column(String(32), unique=True, nullable=False)
+    name = Column(String(255), nullable=True)
+    source = Column(String(64), nullable=False)
 
-    # Relationships
-    user = relationship("User", back_populates="preferences_detail")
+    location = Column(Geography(geometry_type="POINT", srid=4326), nullable=False)
+
+    elevation_m = Column(Float, nullable=True)
+    is_active = Column(Boolean, default=True)
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_stations_location", "location", postgresql_using="gist"),
+    )
 
 
-class AlertThreshold(Base, TimestampMixin):
-    """AlertThreshold — custom alert thresholds per crop type."""
+class WeatherObservation(Base):
+    """Raw historical weather observations from stations."""
+    __tablename__ = "weather_observations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    station_id = Column(UUID(as_uuid=True), ForeignKey("weather_stations.id"), nullable=False)
+    observed_at = Column(DateTime(timezone=True), nullable=False)
+
+    temperature_c = Column(Float, nullable=True)
+    humidity_pct = Column(Float, nullable=True)
+    precipitation_mm = Column(Float, nullable=True)
+    wind_speed_kph = Column(Float, nullable=True)
+    wind_gust_kph = Column(Float, nullable=True)
+    wind_direction = Column(String(4), nullable=True)
+    cloud_cover_pct = Column(Float, nullable=True)
+    uv_index = Column(Float, nullable=True)
+    solar_radiation_mj = Column(Float, nullable=True)
+    soil_temp_10cm_c = Column(Float, nullable=True)
+
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_observations_station_time", "station_id", "observed_at"),
+    )
+
+
+class WeatherForecast(Base):
+    __tablename__ = "weather_forecasts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+    station_id = Column(UUID(as_uuid=True), ForeignKey("weather_stations.id"), nullable=True)
+    source = Column(String(64), nullable=False)
+    forecast_date = Column(Date, nullable=False)
+    issued_at = Column(DateTime(timezone=True), nullable=False)
+
+    temperature_high_c = Column(Float, nullable=True)
+    temperature_low_c = Column(Float, nullable=True)
+    precipitation_mm = Column(Float, nullable=True)
+    precipitation_probability = Column(Float, nullable=True)
+    humidity_pct = Column(Float, nullable=True)
+    wind_speed_kph = Column(Float, nullable=True)
+    wind_gust_kph = Column(Float, nullable=True)
+    wind_direction = Column(String(4), nullable=True)
+    cloud_cover_pct = Column(Float, nullable=True)
+    uv_index = Column(Float, nullable=True)
+    solar_radiation_mj = Column(Float, nullable=True)
+
+    # Agricultural context (computed by weather module)
+    spray_window_hours = Column(Float, nullable=True)
+    frost_risk = Column(Boolean, default=False)
+    heat_stress_risk = Column(Boolean, default=False)
+
+    tags = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    field = relationship("Field", back_populates="forecasts")
+
+    __table_args__ = (
+        Index("idx_forecasts_field_date", "field_id", "forecast_date", unique=True),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Alert Entities
+# ---------------------------------------------------------------------------
+
+class Alert(Base):
+    """Weather alerts — frost, heat, storms. Crop-specific impact."""
+    __tablename__ = "alerts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+    alert_type = Column(Enum(AlertType), nullable=False)
+    severity = Column(Enum(AlertSeverity), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    source = Column(String(64), nullable=False)
+
+    starts_at = Column(DateTime(timezone=True), nullable=False)
+    ends_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Crop-specific context
+    crop_impact = Column(Text, nullable=True)
+    recommended_action = Column(Text, nullable=True)
+
+    acknowledged = Column(Boolean, default=False)
+    tags = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    field = relationship("Field", back_populates="alerts")
+
+    __table_args__ = (
+        Index("idx_alerts_field_time", "field_id", "starts_at"),
+    )
+
+
+class AlertThreshold(Base):
+    """User-configurable alert thresholds per field or globally."""
     __tablename__ = "alert_thresholds"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    crop_type = Column(String, nullable=True)  # null = global default
-    alert_type = Column(String(20), nullable=False)  # frost|heat|drought|flood|wind
-    threshold_value = Column(Numeric, nullable=False)
-    unit = Column(String(10), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    # Composite index for fast lookup
+    # Nullable field_id — null means global threshold for all fields
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=True)
+
+    alert_type = Column(Enum(AlertType), nullable=False)
+    threshold_value = Column(Float, nullable=True)                  # e.g. -2.0 for frost
+    is_enabled = Column(Boolean, default=True)
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="alert_thresholds")
+
     __table_args__ = (
-        Index("ix_alert_thresholds_user_crop_type", "user_id", "crop_type", "alert_type"),
+        Index("idx_thresholds_user_field", "user_id", "field_id"),
     )
 
 
-class FieldNote(Base, TimestampMixin):
-    """FieldNote — farmer's observations and context for a field."""
-    __tablename__ = "field_notes"
+# ---------------------------------------------------------------------------
+# Recommendation Entities
+# ---------------------------------------------------------------------------
+
+class Recommendation(Base):
+    __tablename__ = "recommendations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    content = Column(Text, nullable=False)
-    photo_url = Column(String, nullable=True)
-    tags = Column(ARRAY(String), default=list, nullable=False)
-    season_year = Column(Integer, nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False)
 
-    # Relationships
-    field = relationship("Field", back_populates="notes")
+    category = Column(Enum(RecommendationCategory), nullable=False)
+    priority = Column(Enum(RecommendationPriority), nullable=False)
+    title = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+
+    # Reasoning powers the "Why?" feature
+    reasoning = Column(Text, nullable=True)
+    # Confidence: 0.0-1.0
+    confidence = Column(Float, nullable=True)
+
+    # Time sensitivity
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    valid_until = Column(DateTime(timezone=True), nullable=True)
+
+    # Weather inputs that drove this recommendation
+    weather_summary = Column(JSONB, nullable=True)
+
+    # State
+    is_active = Column(Boolean, default=True)
+    is_snoozed = Column(Boolean, default=False)
+    snoozed_until = Column(DateTime(timezone=True), nullable=True)
+    is_dismissed = Column(Boolean, default=False)
+
+    tags = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    user = relationship("User", back_populates="recommendations")
+    field = relationship("Field", back_populates="recommendations")
+    feedback = relationship("RecommendationFeedback", back_populates="recommendation", uselist=False)
 
     __table_args__ = (
-        Index("ix_field_notes_field_season", "field_id", "season_year"),
+        Index("idx_recs_user_active", "user_id", "is_active"),
+        Index("idx_recs_field_created", "field_id", "created_at"),
     )
 
 
-class SeasonJournal(Base, TimestampMixin):
-    """SeasonJournal — season-level reflections."""
-    __tablename__ = "season_journals"
+class RecommendationFeedback(Base):
+    """User sentiment on each recommendation."""
+    __tablename__ = "recommendation_feedback"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    recommendation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("recommendations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    sentiment = Column(Enum(FeedbackSentiment), nullable=False)
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    recommendation = relationship("Recommendation", back_populates="feedback")
+
+
+# ---------------------------------------------------------------------------
+# Seasonal Planning
+# ---------------------------------------------------------------------------
+
+class SeasonalPlan(Base):
+    """Long-range seasonal planning — climate outlooks mapped to schedules."""
+    __tablename__ = "seasonal_plans"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+
     season_year = Column(Integer, nullable=False)
-    reflections = Column(JSONB, default=dict, nullable=False)
-    stats = Column(JSONB, default=dict, nullable=False)
+    crop_type = Column(Enum(CropType), nullable=False)
+    crop_variety = Column(String(255), nullable=True)
+
+    # Climate outlook
+    outlook_summary = Column(Text, nullable=True)
+    planting_window_start = Column(Date, nullable=True)
+    planting_window_end = Column(Date, nullable=True)
+    harvest_window_start = Column(Date, nullable=True)
+    harvest_window_end = Column(Date, nullable=True)
+
+    # Rotation recommendations based on soil health
+    rotation_notes = Column(Text, nullable=True)
+
+    # Structured plan data
+    plan_data = Column(JSONB, nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
-        Index("ix_season_journals_user_year", "user_id", "season_year", unique=True),
+        Index("idx_seasonal_field_year", "field_id", "season_year"),
     )
 
 
-class CustomEvent(Base, TimestampMixin):
-    """CustomEvent — farmer's personal calendar events."""
+# ---------------------------------------------------------------------------
+# Ownership Layer — V1
+# ---------------------------------------------------------------------------
+
+class UserPreferences(Base):
+    """V1 — user-level preferences."""
+    __tablename__ = "user_preferences"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+
+    # Units
+    temperature_unit = Column(String(1), nullable=False, default="C")
+    precipitation_unit = Column(String(2), nullable=False, default="mm")
+
+    # Language
+    language = Column(String(10), nullable=False, default="en")
+
+    # Notifications
+    frost_alerts_enabled = Column(Boolean, default=True)
+    heat_alerts_enabled = Column(Boolean, default=True)
+    storm_alerts_enabled = Column(Boolean, default=True)
+    weekly_briefing_enabled = Column(Boolean, default=True)
+    quiet_hours_start = Column(String(5), nullable=True)
+    quiet_hours_end = Column(String(5), nullable=True)
+
+    tags = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="preferences")
+
+
+class CustomEvent(Base):
+    """V1 — farmer-logged field events."""
     __tablename__ = "custom_events"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=True, index=True)
-    event_type = Column(String(20), nullable=False)  # labor|equipment|contract|market|custom
-    title = Column(String, nullable=False)
-    start_time = Column(DateTime(timezone=True), nullable=False)
-    end_time = Column(DateTime(timezone=True), nullable=False)
-    recurrence = Column(JSONB, nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=False)
+    event_type = Column(Enum(EventType), nullable=False)
+    event_date = Column(Date, nullable=False)
+    notes = Column(Text, nullable=True)
+    metadata = Column(JSONB, nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    user = relationship("User", back_populates="custom_events")
+    field = relationship("Field", back_populates="custom_events")
 
     __table_args__ = (
-        Index("ix_custom_events_user_time", "user_id", "start_time", "end_time"),
+        Index("idx_events_field_date", "field_id", "event_date"),
     )
 
 
-class UserOverride(Base, TimestampMixin):
-    """UserOverride — farmer's explicit overrides of system defaults."""
+# ---------------------------------------------------------------------------
+# Ownership Layer — V2
+# ---------------------------------------------------------------------------
+
+class FieldNote(Base):
+    """V2 — free-form notes per field, per date, with photo attachment."""
+    __tablename__ = "field_notes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    note_date = Column(Date, nullable=False)
+    body = Column(Text, nullable=False)
+    photo_key = Column(String(255), nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    field = relationship("Field", back_populates="field_notes")
+
+    __table_args__ = (
+        Index("idx_notes_field_date", "field_id", "note_date"),
+    )
+
+
+class SeasonJournal(Base):
+    """V2 — end-of-season summary per field."""
+    __tablename__ = "season_journals"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+    season_year = Column(Integer, nullable=False)
+    crop_type = Column(Enum(CropType), nullable=False)
+    crop_variety = Column(String(255), nullable=True)
+
+    # Auto-generated from CustomEvents + FieldNotes + Feedback
+    summary = Column(Text, nullable=True)
+    yield_actual = Column(Float, nullable=True)
+    yield_unit = Column(String(32), nullable=True)
+    notes = Column(Text, nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    field = relationship("Field", back_populates="season_journals")
+
+    __table_args__ = (
+        UniqueConstraint("field_id", "season_year", name="uq_journal_field_season"),
+    )
+
+
+class UserOverride(Base):
+    """V2/V3 — user overrides that influence the recommendation engine."""
     __tablename__ = "user_overrides"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), nullable=True, index=True)
-    override_type = Column(String(20), nullable=False)  # growth_stage|irrigation|threshold|schedule
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+
+    override_type = Column(String(64), nullable=False)
+    override_key = Column(String(128), nullable=False)
     override_value = Column(JSONB, nullable=False)
 
+    # For advanced V3+ personal rules
+    rule_description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    tags = Column(ARRAY(String), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="overrides")
+    field = relationship("Field", back_populates="overrides")
+
     __table_args__ = (
-        Index("ix_user_overrides_user_field_type", "user_id", "field_id", "override_type"),
+        Index("idx_overrides_field", "field_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Agronomic Tracking
+# ---------------------------------------------------------------------------
+
+class GrowingDegreeDay(Base):
+    """GDD accumulator per field/crop — drives growth stage predictions."""
+    __tablename__ = "growing_degree_days"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="CASCADE"), nullable=False)
+    crop_type = Column(Enum(CropType), nullable=False)
+    record_date = Column(Date, nullable=False)
+
+    base_temp_c = Column(Float, nullable=False)
+    max_temp_c = Column(Float, nullable=False)
+    min_temp_c = Column(Float, nullable=False)
+    gdd_accumulated = Column(Float, nullable=False)
+    gdd_daily = Column(Float, nullable=False)
+
+    tags = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    field = relationship("Field", back_populates="gdd_records")
+
+    __table_args__ = (
+        Index("idx_gdd_field_date", "field_id", "record_date", unique=True),
     )
