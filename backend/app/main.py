@@ -1,4 +1,4 @@
-"""FastAPI application entry point."""
+"""Harvest Time — FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
@@ -8,14 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine
+from app.modules.fields import router as fields_router
+from app.modules.weather import router as weather_router
+from app.modules.recommendations import router as recommendations_router
+from app.modules.notes import router as notes_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan — startup and shutdown events."""
-    # Startup: run migrations, warm caches, etc.
     yield
-    # Shutdown: close connections, clean up
     await engine.dispose()
 
 
@@ -26,7 +27,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
@@ -36,13 +36,13 @@ app.add_middleware(
 )
 
 
-# Health check
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok", "version": settings.app_version}
 
 
-# Module routers will be registered here
-# from app.modules.weather import router as weather_router
-# from app.modules.fields import router as fields_router
-# from app.modules.recommendations import router as recommendations_router
+# Register module routers
+app.include_router(fields_router)
+app.include_router(weather_router)
+app.include_router(recommendations_router)
+app.include_router(notes_router)
