@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvest Time — Product Design Presentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0f172a;
+    color: #f8fafc;
+    overflow: hidden;
+  }
+  
+  .slide {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    padding: 60px 80px;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .slide.active { display: flex; }
+  
+  /* Navigation */
+  .nav {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    z-index: 100;
+    background: rgba(15, 23, 42, 0.9);
+    padding: 10px 20px;
+    border-radius: 50px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .nav button {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  
+  .nav button:hover { background: rgba(255,255,255,0.2); }
+  
+  .nav .counter {
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+    min-width: 60px;
+    text-align: center;
+  }
+  
+  /* Slide types */
+  .slide-title {
+    background: linear-gradient(135deg, #166534 0%, #14532d 50%, #0f172a 100%);
+    text-align: center;
+    align-items: center;
+  }
+  
+  .slide-title h1 {
+    font-size: 72px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+  }
+  
+  .slide-title .subtitle {
+    font-size: 24px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 300;
+  }
+  
+  .slide-title .emoji { font-size: 80px; margin-bottom: 24px; }
+  
+  .slide-section {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    align-items: center;
+    text-align: center;
+  }
+  
+  .slide-section h2 {
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -1px;
+  }
+  
+  .slide-section .section-num {
+    font-size: 14px;
+    color: #22c55e;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    margin-bottom: 16px;
+  }
+  
+  .slide-content {
+    background: #0f172a;
+  }
+  
+  .slide-content h2 {
+    font-size: 40px;
+    font-weight: 700;
+    margin-bottom: 40px;
+    letter-spacing: -1px;
+  }
+  
+  .slide-content h2 .accent { color: #22c55e; }
+  
+  /* Components */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    flex: 1;
+  }
+  
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    flex: 1;
+  }
+  
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 32px;
+  }
+  
+  .card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .card p, .card li {
+    color: rgba(255,255,255,0.7);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  
+  .card ul { list-style: none; padding: 0; }
+  .card li { padding: 4px 0; }
+  .card li::before { content: "→ "; color: #22c55e; }
+  
+  .stat-row {
+    display: flex;
+    gap: 32px;
+    margin-top: 24px;
+  }
+  
+  .stat {
+    text-align: center;
+    flex: 1;
+  }
+  
+  .stat .num {
+    font-size: 48px;
+    font-weight: 800;
+    color: #22c55e;
+  }
+  
+  .stat .label {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 4px;
+  }
+  
+  .tag {
+    display: inline-block;
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 2px;
+  }
+  
+  .tag.orange {
+    background: rgba(234, 88, 12, 0.15);
+    color: #fb923c;
+  }
+  
+  .tag.blue {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+  }
+  
+  .priority-critical { border-left: 4px solid #ef4444; }
+  .priority-high { border-left: 4px solid #f97316; }
+  .priority-medium { border-left: 4px solid #eab308; }
+  .priority-low { border-left: 4px solid #22c55e; }
+  
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  
+  .flow-step:last-child { border-bottom: none; }
+  
+  .flow-num {
+    width: 36px;
+    height: 36px;
+    background: #22c55e;
+    color: #0f172a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  
+  .flow-text h4 { font-size: 16px; font-weight: 600; }
+  .flow-text p { font-size: 14px; color: rgba(255,255,255,0.6); }
+  
+  .timeline {
+    display: flex;
+    gap: 0;
+    margin-top: 32px;
+  }
+  
+  .timeline-phase {
+    flex: 1;
+    padding: 24px;
+    border-top: 3px solid;
+    position: relative;
+  }
+  
+  .timeline-phase.v1 { border-color: #22c55e; }
+  .timeline-phase.v2 { border-color: #f97316; }
+  .timeline-phase.v3 { border-color: #3b82f6; }
+  
+  .timeline-phase h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  
+  .timeline-phase .weeks {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 12px;
+  }
+  
+  .timeline-phase ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .timeline-phase li {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    padding: 3px 0;
+  }
+  
+  .timeline-phase li::before {
+    content: "• ";
+    color: rgba(255,255,255,0.3);
+  }
+  
+  .quote {
+    font-size: 28px;
+    font-weight: 300;
+    font-style: italic;
+    color: rgba(255,255,255,0.8);
+    text-align: center;
+    max-width: 800px;
+    line-height: 1.5;
+    margin: 0 auto;
+  }
+  
+  .quote::before { content: '"'; color: #22c55e; font-size: 48px; }
+  .quote::after { content: '"'; color: #22c55e; font-size: 48px; }
+  
+  .mock-phone {
+    width: 280px;
+    height: 560px;
+    background: #1e293b;
+    border-radius: 36px;
+    border: 3px solid #334155;
+    overflow: hidden;
+    margin: 0 auto;
+    position: relative;
+  }
+  
+  .mock-phone .notch {
+    width: 120px;
+    height: 28px;
+    background: #0f172a;
+    border-radius: 0 0 16px 16px;
+    margin: 0 auto;
+  }
+  
+  .mock-phone .screen {
+    padding: 16px;
+    height: calc(100% - 28px);
+    overflow: hidden;
+  }
+  
+  .mock-phone .weather-bar {
+    background: #166534;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .mock-phone .weather-bar .temp { font-size: 28px; font-weight: 700; }
+  .mock-phone .weather-bar .details { font-size: 11px; color: rgba(255,255,255,0.7); }
+  
+  .mock-phone .action-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-left: 3px solid;
+  }
+  
+  .mock-phone .action-card.critical { border-color: #ef4444; }
+  .mock-phone .action-card.high { border-color: #f97316; }
+  .mock-phone .action-card.medium { border-color: #eab308; }
+  
+  .mock-phone .action-card .title { font-size: 12px; font-weight: 600; }
+  .mock-phone .action-card .desc { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  
+  .mock-phone .bottom-nav {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0 12px;
+  }
+  
+  .mock-phone .bottom-nav span {
+    font-size: 9px;
+    color: rgba(255,255,255,0.5);
+  }
+  
+  .mock-phone .bottom-nav span.active { color: #22c55e; }
+  
+  .arch-diagram {
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.8);
+    background: rgba(255,255,255,0.03);
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .check { color: #22c55e; }
+</style>
+</head>
+<body>
+
+<!-- Slide 1: Title -->
+<div class="slide slide-title active" id="slide1">
+  <div class="emoji">🌾</div>
+  <h1>Harvest Time</h1>
+  <div class="subtitle">Smart Farming Advisor — Product Design Review</div>
+  <div style="margin-top: 40px; color: rgba(255,255,255,0.4); font-size: 14px;">
+    July 2026 • Design Sprint Results
+  </div>
+</div>
+
+<!-- Slide 2: The Problem -->
+<div class="slide slide-content" id="slide2">
+  <h2>The <span class="accent">Problem</span></h2>
+  <div class="two-col">
+    <div>
+      <div class="quote" style="text-align: left; font-size: 22px; margin: 0 0 32px 0;">
+        Farmers juggle fragmented tools. Weather apps that don't understand crops. Soil data that doesn't connect to forecasts. Generic advice that ignores local conditions.
+      </div>
+      <p style="color: rgba(255,255,255,0.6); font-size: 18px; line-height: 1.7;">
+        The result: <strong style="color: #ef4444;">guesswork where precision matters most.</strong>
+      </p>
+      <p style="color: rgba(255,255,255,0.6); font-size: 18px; line-height: 1.7; margin-top: 16px;">
+        A farmer's question is simple:<br>
+        <em style="color: #22c55e;">"What should I do this week?"</em>
+      </p>
+      <p style="color: rgba(255,255,255,0.6); font-size: 18px; line-height: 1.7; margin-top: 16px;">
+        No existing tool answers it well.
+      </p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="card">
+        <h3>🌤️ Weather Apps</h3>
+        <p>Raw data. No crop context. "30% chance of rain" doesn't tell a farmer whether to spray.</p>
+      </div>
+      <div class="card">
+        <h3>🧪 Soil Reports</h3>
+        <p>Lab results in PDFs. Disconnected from weather. No actionable advice.</p>
+      </div>
+      <div class="card">
+        <h3>📱 Farm Apps</h3>
+        <p>Generic advice. One-size-fits-all. Don't know your fields, your crops, your schedule.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: The Vision -->
+<div class="slide slide-content" id="slide3">
+  <h2>The <span class="accent">Vision</span></h2>
+  <div class="two-col" style="align-items: center;">
+    <div>
+      <p style="font-size: 24px; line-height: 1.7; color: rgba(255,255,255,0.8); margin-bottom: 32px;">
+        An integrated platform that answers the farmer's question:<br>
+        <strong style="color: #22c55e; font-size: 28px;">"What should I do this week, given my crops, my soil, and the weather coming?"</strong>
+      </p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <span class="tag">Decisions, not data</span>
+        <span class="tag">Crop-specific</span>
+        <span class="tag">Field-aware</span>
+        <span class="tag">Weather-integrated</span>
+        <span class="tag orange">Farmer ownership</span>
+        <span class="tag blue">Offline-first</span>
+      </div>
+    </div>
+    <div class="mock-phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="weather-bar">
+          <div>
+            <div class="temp">72°F</div>
+            <div class="details">Partly cloudy</div>
+          </div>
+          <div class="details" style="text-align: right;">
+            🌧️ 40% rain<br>💨 12 mph
+          </div>
+        </div>
+        <div style="font-size: 11px; font-weight: 600; margin-bottom: 8px;">This Week's Actions</div>
+        <div class="action-card critical">
+          <div class="title">🔴 Frost Protection</div>
+          <div class="desc">Cover sensitive crops — 28°F Thursday</div>
+        </div>
+        <div class="action-card high">
+          <div class="title">🟠 Apply Nitrogen</div>
+          <div class="desc">Before Friday's rain — North Field</div>
+        </div>
+        <div class="action-card medium">
+          <div class="title">🟡 Schedule Irrigation</div>
+          <div class="desc">Soil moisture low, no rain 5 days</div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <span class="active">Home</span>
+        <span>Advisor</span>
+        <span>Fields</span>
+        <span>Settings</span>
+        <span>🌟 Mine</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: Key Features -->
+<div class="slide slide-content" id="slide4">
+  <h2>Key <span class="accent">Features</span></h2>
+  <div class="three-col">
+    <div class="card">
+      <h3>📋 Weekly Action Advisor</h3>
+      <p>The hero feature. Every week, a personalized briefing combining weather + crop stage + soil into prioritized recommendations.</p>
+      <div style="margin-top: 16px;">
+        <span class="tag">🔴 Urgent (48hr)</span>
+        <span class="tag orange">🟡 This Week</span>
+        <span class="tag blue">🟢 FYI</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🌤️ Weather Intelligence</h3>
+      <p>Hyperlocal forecasts translated into agricultural context. Frost alerts, spray windows, growing degree day tracking.</p>
+      <div style="margin-top: 16px;">
+        <span class="tag">Open-Meteo</span>
+        <span class="tag">NOAA Alerts</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🌾 Field Profiles</h3>
+      <p>Real agronomic data: location, soil type, crop variety, growth stage. USDA SSURGO auto-fill for US fields.</p>
+      <div style="margin-top: 16px;">
+        <span class="tag">PostGIS</span>
+        <span class="tag">Spatial queries</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🔔 Smart Alerts</h3>
+      <p>Crop-specific thresholds. A frost alert means different things for wheat vs. citrus. Push + SMS for emergencies.</p>
+    </div>
+    <div class="card">
+      <h3>📝 Field Notes</h3>
+      <p>Farmer's own observations. Text, photos, voice. Searchable timeline. Builds personal knowledge base over seasons.</p>
+    </div>
+    <div class="card">
+      <h3>🌟 My Harvest Time</h3>
+      <p>Ownership dashboard. Seasons completed, recommendations followed, notes captured. Makes investment visible.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 5: Architecture -->
+<div class="slide slide-content" id="slide5">
+  <h2>Architecture: <span class="accent">Modular Monolith</span></h2>
+  <div class="two-col">
+    <div>
+      <p style="font-size: 18px; color: rgba(255,255,255,0.7); margin-bottom: 24px; line-height: 1.7;">
+        One backend application. One data model. Domain-specific service boundaries. Farmers get one app — the integration is what makes it valuable.
+      </p>
+      <div class="arch-diagram">
+┌─────────────────────────────────┐
+│        Harvest Time Backend     │
+│                                 │
+│  ┌──────────┐  ┌──────────┐    │
+│  │ Weather  │  │  Crop    │    │
+│  │ Module   │  │  Module  │    │
+│  └────┬─────┘  └────┬─────┘    │
+│       └──────┬───────┘          │
+│              ▼                  │
+│  ┌───────────────────────┐      │
+│  │  Recommendation Engine │      │
+│  │  (orchestrator)        │      │
+│  └───────────┬───────────┘      │
+│       ┌──────┼──────┐           │
+│       ▼      ▼      ▼           │
+│  ┌────────┐ ┌────────┐ ┌──────┐│
+│  │ Alert  │ │Notif.  │ │Soil  ││
+│  │ Module │ │Module  │ │Module││
+│  └────────┘ └────────┘ └──────┘│
+└─────────────────────────────────┘
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>🔗 Clean Dependency Graph</h3>
+        <p>The Recommendation Engine is the only module that reads from all others. Modules never call each other directly.</p>
+      </div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>🔌 Module Interfaces</h3>
+        <ul>
+          <li>WeatherModule: getForecast, getAlerts</li>
+          <li>CropModule: getCropStage, getGDD</li>
+          <li>SoilModule: getSoilProfile</li>
+          <li>MarketModule: getPrice, getTrend</li>
+          <li>IrrigationModule: getSchedule, calculateET</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>📡 External APIs</h3>
+        <ul>
+          <li>Open-Meteo (weather, free)</li>
+          <li>Visual Crossing (fallback)</li>
+          <li>USDA SSURGO (soil, free)</li>
+          <li>NOAA CAP (severe alerts)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 6: Tech Stack -->
+<div class="slide slide-content" id="slide6">
+  <h2>Tech <span class="accent">Stack</span></h2>
+  <div class="three-col">
+    <div class="card">
+      <h3>⚙️ Backend</h3>
+      <ul>
+        <li><strong>Python + FastAPI</strong></li>
+        <li>Async-native, high performance</li>
+        <li>Best ag data science ecosystem</li>
+        <li>SQLAlchemy 2.0 ORM</li>
+        <li>Alembic migrations</li>
+        <li>Celery + Redis (task queue)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🖥️ Frontend</h3>
+      <ul>
+        <li><strong>React + Next.js (PWA)</strong></li>
+        <li>SSR for fast load on slow connections</li>
+        <li>Offline-first with service workers</li>
+        <li>Tailwind CSS (mobile-first)</li>
+        <li>TanStack Query (caching)</li>
+        <li>Leaflet (field mapping)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Database</h3>
+      <ul>
+        <li><strong>PostgreSQL + PostGIS</strong></li>
+        <li>Spatial queries for field boundaries</li>
+        <li>JSONB for rapid iteration</li>
+        <li>Time-series partitioning</li>
+        <li>pg_cron for scheduled jobs</li>
+      </ul>
+    </div>
+  </div>
+  <div class="stat-row" style="margin-top: 40px;">
+    <div class="stat">
+      <div class="num">$0</div>
+      <div class="label">API cost at launch</div>
+    </div>
+    <div class="stat">
+      <div class="num">$5-20</div>
+      <div class="label">Monthly hosting (MVP)</div>
+    </div>
+    <div class="stat">
+      <div class="num">50KB</div>
+      <div class="label">Weekly sync per field</div>
+    </div>
+    <div class="stat">
+      <div class="num">7 days</div>
+      <div class="label">Offline capability</div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7: Data Model -->
+<div class="slide slide-content" id="slide7">
+  <h2>Data <span class="accent">Model</span></h2>
+  <div class="two-col">
+    <div>
+      <p style="font-size: 16px; color: rgba(255,255,255,0.6); margin-bottom: 24px;">
+        Core hierarchy + module-owned tables + JSONB extension points. No cross-module foreign keys.
+      </p>
+      <div class="arch-diagram" style="font-size: 13px;">
+User 1──N Farm
+Farm 1──N Field
+Field 1──N SoilProfile
+Field 1──N CropPlanting
+Crop 1──N CropPlanting
+CropPlanting 1──N GrowingDegreeDay
+Field 1──N Recommendation
+Field 1──N Alert
+Field 1──N FieldNotes
+Field 1──N CustomEvents
+User 1──N UserPreferences
+User 1──N AlertThreshold
+User 1──N SeasonJournal
+Recommendation 1──N Feedback
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>🌍 Spatial Data</h3>
+        <ul>
+          <li>Field boundaries as PostGIS polygons</li>
+          <li>Farm locations as geography points</li>
+          <li>"Fields near this weather station" queries</li>
+        </ul>
+      </div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>📊 GDD Tracking</h3>
+        <ul>
+          <li>Daily growing degree days computed per planting</li>
+          <li>Cumulative GDD drives growth stage logic</li>
+          <li>Time-series partitioned from day one</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🔌 Extension Pattern</h3>
+        <ul>
+          <li>JSONB metadata on every core entity</li>
+          <li>New modules add tables, not modify existing</li>
+          <li>Additive-only migrations in v1</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 8: Recommendation Engine -->
+<div class="slide slide-content" id="slide8">
+  <h2>The <span class="accent">Recommendation Engine</span></h2>
+  <div class="two-col">
+    <div>
+      <p style="font-size: 18px; color: rgba(255,255,255,0.7); margin-bottom: 24px; line-height: 1.7;">
+        The heart of Harvest Time. A 6-step pipeline that fuses weather, crop phenology, and soil conditions into prioritized, personalized advice.
+      </p>
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-text">
+          <h4>Rule Generation</h4>
+          <p>Crop stage × weather × soil → raw recommendations</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-text">
+          <h4>Override Application</h4>
+          <p>Farmer's explicit overrides take precedence</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-text">
+          <h4>Preference Filtering</h4>
+          <p>Organic mode, skip categories, seasonal goals</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-text">
+          <h4>Feedback Adjustment</h4>
+          <p>>70% skip demotes category, >70% done boosts</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-text">
+          <h4>Constraint Checking</h4>
+          <p>Custom events block scheduling conflicts</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-text">
+          <h4>Threshold Checking</h4>
+          <p>Custom alert thresholds personalize triggers</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>🔄 Feedback Loop</h3>
+        <p style="margin-bottom: 12px;">Farmers respond to every recommendation: Done / Skip / Modified + optional note.</p>
+        <ul>
+          <li><strong>V1:</strong> Log only — builds training data</li>
+          <li><strong>V2:</strong> Weighted heuristics — per-farmer skip rates adjust priority</li>
+          <li><strong>V3:</strong> Pattern analysis — regional benchmarks</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🎯 Rule-Based (Not ML)</h3>
+        <p style="margin-bottom: 12px;">Agronomist-defined rules per crop × growth stage × weather condition.</p>
+        <ul>
+          <li>Auditable and predictable</li>
+          <li>No training data needed</li>
+          <li>Farmer feedback improves rules over time</li>
+          <li>ML transition at V3 with enough data</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 9: Ownership & Personalization -->
+<div class="slide slide-content" id="slide9">
+  <h2>Farmer <span class="accent">Ownership</span></h2>
+  <div class="two-col">
+    <div>
+      <p style="font-size: 18px; color: rgba(255,255,255,0.7); margin-bottom: 24px; line-height: 1.7;">
+        The difference between a tool people use and a tool people <strong style="color: #22c55e;">keep</strong>. Farmers need to feel like this is <em>their</em> app.
+      </p>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>📝 Capture-First, Organize-Later</h3>
+        <p>Field notes, photos, voice — effortless to capture, auto-tagged, searchable. Not homework.</p>
+      </div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>⚙️ Personalization as Discovery</h3>
+        <p>Preferences surface in-context (tap ⚙️ on any alert), not hidden behind Settings. Organic mode, custom thresholds, seasonal goals.</p>
+      </div>
+      <div class="card">
+        <h3>📈 Ownership by Accumulation</h3>
+        <p>The app gets more valuable the more they use it. After one season, switching costs are high — they've built a personal knowledge base.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>📅 My Calendar (V2)</h3>
+        <p>Personal events (labor, equipment, contracts) alongside advisor recommendations. Drag-to-reschedule with smart conflict warnings.</p>
+      </div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>📖 Season Journal (V2)</h3>
+        <p>End-of-season reflections. Year-over-year comparison. "What I learned" insights that compound over years.</p>
+      </div>
+      <div class="card">
+        <h3>🌟 My Harvest Time (V3)</h3>
+        <p>Ownership dashboard: seasons completed, fields managed, recommendations followed, notes captured. Makes the investment visible.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 10: MVP Scope -->
+<div class="slide slide-content" id="slide10">
+  <h2>MVP <span class="accent">Scope</span></h2>
+  <div class="timeline">
+    <div class="timeline-phase v1">
+      <h3 style="color: #22c55e;">V1 — MVP</h3>
+      <div class="weeks">8 weeks</div>
+      <ul>
+        <li>Weekly Action Advisor</li>
+        <li>Field profiles (GPS, crop, soil)</li>
+        <li>Weather intelligence (7-day)</li>
+        <li>Push/SMS notifications</li>
+        <li>Basic auth & accounts</li>
+        <li><strong>Field Notes</strong> (text + photo)</li>
+        <li><strong>Recommendation Feedback</strong></li>
+        <li><strong>User Preferences</strong></li>
+        <li><strong>Recommendation History</strong></li>
+      </ul>
+    </div>
+    <div class="timeline-phase v2">
+      <h3 style="color: #f97316;">V2 — Personalization</h3>
+      <div class="weeks">12 weeks</div>
+      <ul>
+        <li>Custom calendar events</li>
+        <li>Season journal</li>
+        <li>Adaptive recommendations</li>
+        <li>Custom alert rules</li>
+        <li>Photo gallery</li>
+        <li>Historical data import</li>
+      </ul>
+    </div>
+    <div class="timeline-phase v3">
+      <h3 style="color: #3b82f6;">V3 — Intelligence</h3>
+      <div class="16 weeks</div>
+      <ul>
+        <li>Ownership dashboard</li>
+        <li>Year-over-year comparisons</li>
+        <li>Yield tracking</li>
+        <li>Community benchmarks</li>
+        <li>Export/share</li>
+        <li>ML recommendation engine</li>
+      </ul>
+    </div>
+  </div>
+  <div class="stat-row" style="margin-top: 40px;">
+    <div class="stat">
+      <div class="num">5-8</div>
+      <div class="label">Major row crops at launch</div>
+    </div>
+    <div class="stat">
+      <div class="num">US</div>
+      <div class="label">Initial geography</div>
+    </div>
+    <div class="stat">
+      <div class="num">Free</div>
+      <div class="label">Beta pricing</div>
+    </div>
+    <div class="stat">
+      <div class="num">3/week</div>
+      <div class="label">Target farmer interactions</div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 11: User Flow -->
+<div class="slide slide-content" id="slide11">
+  <h2>User <span class="accent">Experience</span></h2>
+  <div class="two-col" style="align-items: start;">
+    <div>
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-text">
+          <h4>Onboarding (< 3 min)</h4>
+          <p>Phone OTP → GPS location → crop/field setup → satellite boundary → alert prefs</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-text">
+          <h4>Home Dashboard</h4>
+          <p>Weather bar → 3 priority action cards → forecast → field status</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-text">
+          <h4>Weekly Advisor</h4>
+          <p>🔴 Urgent / 🟡 This Week / 🟢 FYI with "Why" reasoning toggle</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-text">
+          <h4>Action Interaction</h4>
+          <p>Done / Skip with one-tap reasons + optional note → feedback loop</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-text">
+          <h4>Field Notes</h4>
+          <p>Quick-capture from any screen. Photo-first, voice, auto-tags, offline sync</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-text">
+          <h4>Ownership Dashboard</h4>
+          <p>🌟 My Harvest — seasons, stats, knowledge summary. Makes investment visible</p>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="card">
+        <h3>📱 15 Core Screens</h3>
+        <ul>
+          <li>Onboarding (5 screens)</li>
+          <li>Home Dashboard</li>
+          <li>Weekly Advisor</li>
+          <li>Action Detail</li>
+          <li>Fields List / Field Detail</li>
+          <li>Field Notes Timeline</li>
+          <li>Alert Inbox</li>
+          <li>Weather Detail</li>
+          <li>Settings & Preferences</li>
+          <li>Recommendation History</li>
+          <li>Season Journal (V2)</li>
+          <li>My Calendar (V2)</li>
+          <li>🌟 My Harvest (V3)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3> outdoor-optimized</h3>
+        <ul>
+          <li>WCAG AAA contrast (sun glare)</li>
+          <li>48px+ touch targets (gloves)</li>
+          <li>One-handed bottom nav</li>
+          <li>3-second scan design</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 12: Offline & Reliability -->
+<div class="slide slide-content" id="slide12">
+  <h2>Offline & <span class="accent">Reliability</span></h2>
+  <div class="two-col">
+    <div>
+      <p style="font-size: 18px; color: rgba(255,255,255,0.7); margin-bottom: 24px; line-height: 1.7;">
+        Farmers work in fields with intermittent connectivity. This is a <strong style="color: #22c55e;">hard requirement</strong>, not nice-to-have.
+      </p>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>💾 Cache-First Strategy</h3>
+        <ul>
+          <li>Last-known state always available</li>
+          <li>Weekly advice cached locally — works 7 days offline</li>
+          <li>Field data syncs when connectivity returns</li>
+          <li>Critical alerts attempt SMS even on 2G</li>
+          <li>Data freshness always visible ("4 hours old")</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🔧 Circuit Breakers</h3>
+        <ul>
+          <li>5 failures in 5 min → open circuit for 30 min</li>
+          <li>Half-open: 1 test request every 5 min</li>
+          <li>All external calls: 5s timeout (15s for batch)</li>
+          <li>Graceful degradation: stale data with timestamp</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="stat-row" style="margin-bottom: 24px;">
+        <div class="stat">
+          <div class="num">50KB</div>
+          <div class="label">Weekly sync per field</div>
+        </div>
+        <div class="stat">
+          <div class="num">2G</div>
+          <div class="label">Minimum connectivity</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>🔔 Notification Tiers</h3>
+        <ul>
+          <li><strong>P0 Emergency:</strong> Frost, hail → SMS + Push</li>
+          <li><strong>P1 High:</strong> Irrigation, pest → Push</li>
+          <li><strong>P2 Medium:</strong> Weekly advice → Push</li>
+          <li><strong>P3 Low:</strong> Tips, digest → Email</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>📡 Bandwidth Budget</h3>
+        <ul>
+          <li>Weather data: ~2KB/day</li>
+          <li>Weekly advice: ~5KB</li>
+          <li>Field profiles: ~1KB each</li>
+          <li>Total: ~50KB/field/week</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 13: Success Metrics -->
+<div class="slide slide-content" id="slide13">
+  <h2>Success <span class="accent">Metrics</span></h2>
+  <div class="two-col">
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>📊 Engagement Metrics</h3>
+        <ul>
+          <li><strong>≥40%</strong> weekly return rate</li>
+          <li><strong>≥60%</strong> advisory interaction rate</li>
+          <li><strong>≥25%</strong> alert click-through rate</li>
+          <li><strong>≥50%</strong> field profile completion</li>
+          <li><strong>≥50%</strong> recommendation feedback rate</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🎯 V1 Design Goal</h3>
+        <p style="font-size: 20px; color: #22c55e; font-weight: 600; margin-top: 12px;">
+          Three farmer-authored interactions per week:
+        </p>
+        <ol style="margin-top: 12px; padding-left: 20px; color: rgba(255,255,255,0.7);">
+          <li>Respond to recommendation (done/skip)</li>
+          <li>Add field note</li>
+          <li>Review history</li>
+        </ol>
+        <p style="margin-top: 12px; color: rgba(255,255,255,0.6);">This forms the ownership habit.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>⚠️ Key Risks</h3>
+        <ul>
+          <li><strong>Wrong recommendations</strong> erode trust → conservative rules, agronomist review</li>
+          <li><strong>Weather data gaps</strong> in rural areas → gridded forecast models</li>
+          <li><strong>Cold start</strong> — users don't fill in data → SSURGO auto-fill, GPS defaults</li>
+          <li><strong>Notes feel like homework</strong> → capture-first, auto-tags, voice</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>✂️ If We Need to Cut</h3>
+        <ul>
+          <li>Multiple fields → one field per account</li>
+          <li>Notifications → in-app only</li>
+          <li>Weather translation → basic interpretation</li>
+          <li>SSURGO → pure manual entry</li>
+        </ul>
+        <p style="margin-top: 12px; color: #ef4444; font-weight: 600;">
+          Never cut: The weekly advisory.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 14: Next Steps -->
+<div class="slide slide-content" id="slide14">
+  <h2>Next <span class="accent">Steps</span></h2>
+  <div class="two-col">
+    <div>
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-text">
+          <h4>Set Up Development Environment</h4>
+          <p>Docker Compose: PostgreSQL + PostGIS, Redis, backend, frontend</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-text">
+          <h4>Generate Database Migrations</h4>
+          <p>Alembic: core entities first, then weather module, then ownership layer</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-text">
+          <h4>Build Weather Integration</h4>
+          <p>Open-Meteo API client, forecast storage, frost risk detection</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-text">
+          <h4>Wire Frontend to API</h4>
+          <p>Home dashboard, advisor view, field management — connected to real data</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-text">
+          <h4>Test Recommendation Engine</h4>
+          <p>End-to-end: field + crop + weather → prioritized weekly advice</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 16px;">
+        <h3>📁 Repo</h3>
+        <p style="font-family: monospace; color: #22c55e; margin-top: 8px;">github.com/bobroberts2639/HarvestTime</p>
+        <p style="margin-top: 8px;">32 files, 2,980 lines committed. Backend, frontend, Docker Compose, and all design docs.</p>
+      </div>
+      <div class="card">
+        <h3>👥 Team</h3>
+        <ul>
+          <li><strong>Forge</strong> — Tech Stack</li>
+          <li><strong>Sage</strong> — Data Model</li>
+          <li><strong>Nimbus</strong> — UX Design</li>
+          <li><strong>Arlo</strong> — MVP Scope</li>
+          <li><strong>Koda</strong> — Integration Architecture</li>
+          <li><strong>Camus</strong> — Coordination & Build</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 15: Thank You -->
+<div class="slide slide-title" id="slide15" style="background: linear-gradient(135deg, #166534 0%, #0f172a 100%);">
+  <div class="emoji">🌾</div>
+  <h1>Harvest Time</h1>
+  <div class="subtitle" style="margin-bottom: 40px;">Decisions, not data.</div>
+  <div style="color: rgba(255,255,255,0.5); font-size: 16px;">
+    Let's build something farmers will keep.
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="nav">
+  <button onclick="prev()">←</button>
+  <span class="counter" id="counter">1 / 15</span>
+  <button onclick="next()">→</button>
+</div>
+
+<script>
+  let current = 1;
+  const total = 15;
+  
+  function show(n) {
+    document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+    document.getElementById('slide' + n).classList.add('active');
+    document.getElementById('counter').textContent = n + ' / ' + total;
+  }
+  
+  function next() { if (current < total) { current++; show(current); } }
+  function prev() { if (current > 1) { current--; show(current); } }
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  });
+</script>
+
+</body>
+</html>
